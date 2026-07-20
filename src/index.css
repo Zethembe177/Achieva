@@ -1,0 +1,18 @@
+/* index.css — global polish for the gradient theme.
+   Imported once in main.jsx. Handles the Inter font, hover lift on
+   buttons/cards (which inline styles can't do), and smooth transitions. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+* { box-sizing: border-box; }
+body { margin: 0; }
+
+/* buttons: lift + glow on hover (matches founder's .btn-gold:hover) */
+button { transition: transform .18s ease, box-shadow .18s ease, filter .18s ease; }
+button:hover:not(:disabled) { transform: translateY(-2px); }
+.ach-btn-gold:hover:not(:disabled) { box-shadow: 0 12px 30px -10px rgba(201,168,76,.5); filter: brightness(1.05); }
+
+/* tappable cards: subtle raise on hover */
+.ach-card-tap:hover { transform: translateY(-2px); box-shadow: 0 14px 34px -16px rgba(0,0,0,.7); }
+
+/* thin custom scrollbar so the phone frame looks clean */
+::-webkit-scrollbar { width: 0; height: 0; }
