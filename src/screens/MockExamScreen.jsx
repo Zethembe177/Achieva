@@ -8,10 +8,11 @@
 // phone sleeps, or a tick is missed, the timer is still correct when it resumes —
 // which a naive "seconds--" interval would get wrong. This is the behaviour the
 // real React Native app must replicate.
-import { useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { COLORS } from "../theme/tokens";
+import { useNav } from "../navigation/NavContext";
 import { useProgress } from "../state/ProgressContext";
-import { PAST_PAPERS, nscLevel } from "../data/mockData";
+import { PAST_PAPERS, WALKTHROUGHS, nscLevel } from "../data/mockData";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import ScreenHeader from "../components/ScreenHeader";
@@ -25,13 +26,17 @@ function fmt(ms) {
 }
 
 export default function MockExamScreen() {
+  const { params, navigate } = useNav();
   const { recordMockExam } = useProgress();
   const [phase, setPhase] = useState("setup");   // setup | writing | marking
   const [saved, setSaved] = useState(false);      // ensures we record the result once
-  const [paper, setPaper] = useState(PAST_PAPERS[0]);
+  const [paper, setPaper] = useState(
+    PAST_PAPERS.find((p) => p.id === params.paperId) || PAST_PAPERS[0]
+  );
   const [minutes, setMinutes] = useState(180);    // default full paper = 3 hours
   const [remaining, setRemaining] = useState(0);
   const endRef = useRef(null);                     // absolute end timestamp
+  const walkthrough = useMemo(() => WALKTHROUGHS.find((item) => item.paperId === paper.id), [paper.id]);
 
   // Timestamp-based ticking. We recompute from the wall clock every 250ms.
   useEffect(() => {
@@ -129,6 +134,12 @@ export default function MockExamScreen() {
           style={{ width: "100%", background: COLORS.navy, border: `1px solid ${COLORS.line}`, borderRadius: 12,
             padding: "12px 14px", color: COLORS.white, fontSize: 18, textAlign: "center", boxSizing: "border-box" }} />
       </Card>
+      {paper.memo && (
+        <Card style={{ marginTop: 12 }}>
+          <div style={{ color: COLORS.white, fontWeight: 700 }}>Memo</div>
+          <div style={{ color: COLORS.midgrey, fontSize: 12, marginTop: 6 }}>{paper.memoDetails || paper.memo}</div>
+        </Card>
+      )}
       {mark !== "" && (
         <Card gold style={{ textAlign: "center" }}>
           <div style={{ color: COLORS.gold, fontSize: 34, fontWeight: 900 }}>{pct}%</div>
@@ -136,13 +147,24 @@ export default function MockExamScreen() {
             {nscLevel(pct) >= 4 ? " · Bachelor Pass ✓" : " · below Bachelor Pass"}</div>
           {/* Save once to the shared store -> shows on the Performance Tracker + points */}
           {!saved ? (
-            <Button onClick={() => { recordMockExam(paper.title, pct); setSaved(true); }}>
+            <Button onClick={() => { recordMockExam(paper.id, paper.title, pct); setSaved(true); }}>
               Save to my tracker
             </Button>
           ) : (
-            <div style={{ color: COLORS.green, fontSize: 12, marginTop: 8, fontWeight: 600 }}>
-              ✓ Saved to your Performance Tracker (+50 pts)
-            </div>
+            <>
+              <div style={{ color: COLORS.green, fontSize: 12, marginTop: 8, fontWeight: 600 }}>
+                ✓ Saved to your Performance Tracker (+50 pts)
+              </div>
+              {walkthrough && (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate("walkthrough", { paperId: paper.id, walkthroughId: walkthrough.id })}
+                  style={{ marginTop: 10 }}
+                >
+                  Watch tutor walkthrough
+                </Button>
+              )}
+            </>
           )}
         </Card>
       )}

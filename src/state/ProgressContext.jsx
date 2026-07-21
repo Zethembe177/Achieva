@@ -13,29 +13,42 @@
 // ============================================================================
 
 import { createContext, useContext, useState, useCallback, useMemo } from "react";
-import { LEARNER, TOPIC_SCORES, nscLevel } from "../data/mockData";
+import { LEARNER, TOPIC_SCORES, NOTIFICATIONS, nscLevel, RECENT_ACTIVITY, DOWNLOADS } from "../data/mockData";
 
 const ProgressContext = createContext(null);
 
 export function ProgressProvider({ children }) {
-  // seed from mock data so the tracker isn't empty on first load
   const [points, setPoints] = useState(LEARNER.points);
   const [completedLessons, setCompletedLessons] = useState([]);      // lesson ids
   const [topics, setTopics] = useState(TOPIC_SCORES);                // {topic, score, attempts}
-  const [examResults, setExamResults] = useState([]);                // {title, pct, level}
+  const [examResults, setExamResults] = useState([]);                // {paperId, title, pct, level}
+  const [recentActivity, setRecentActivity] = useState(RECENT_ACTIVITY); // seeded activity rows
+  const [quizAttempts, setQuizAttempts] = useState([]);              // {quizId, topicName, pct, pts}
+  const [completedStudyTasks, setCompletedStudyTasks] = useState([]); // study task ids
+  const [downloads, setDownloads] = useState(DOWNLOADS);            // offline content
+  const [readNotifications, setReadNotifications] = useState([]);    // notification ids
 
-  // --- mark a lesson complete (+10 pts, once per lesson) ---
+  const resetProgress = useCallback(() => {
+    setPoints(LEARNER.points);
+    setCompletedLessons([]);
+    setTopics(TOPIC_SCORES);
+    setExamResults([]);
+    setRecentActivity(RECENT_ACTIVITY);
+    setQuizAttempts([]);
+    setCompletedStudyTasks([]);
+    setDownloads(DOWNLOADS);
+    setReadNotifications([]);
+  }, []);
+
   const completeLesson = useCallback((lessonId) => {
     setCompletedLessons((prev) => {
-      if (prev.includes(lessonId)) return prev; // no double-count
+      if (prev.includes(lessonId)) return prev;
       setPoints((p) => p + 10);
       return [...prev, lessonId];
     });
   }, []);
 
-  // --- record a quiz/daily-challenge result ---
-  // Updates the matching topic's rolling average + attempt count, adds points.
-  const recordQuiz = useCallback((topicName, scorePct, pts = 2) => {
+  const recordQuiz = useCallback((quizId, topicName, scorePct, pts = 2) => {
     setPoints((p) => p + pts);
     setTopics((prev) =>
       prev.map((t) => {
@@ -45,25 +58,110 @@ export function ProgressProvider({ children }) {
         return { ...t, score, attempts };
       })
     );
+    setQuizAttempts((prev) => {
+      const nextAttempt = { quizId, topicName, pct: scorePct, pts, timestamp: Date.now() };
+      return prev.some((attempt) => attempt.quizId === quizId)
+        ? prev.map((attempt) => attempt.quizId === quizId ? nextAttempt : attempt)
+        : [...prev, nextAttempt];
+    });
   }, []);
 
-  // --- record a mock exam result (+50 pts) ---
-  const recordMockExam = useCallback((title, pct) => {
+  const recordMockExam = useCallback((paperId, title, pct) => {
     setPoints((p) => p + 50);
-    setExamResults((prev) => [{ title, pct, level: nscLevel(pct) }, ...prev]);
+    setExamResults((prev) => [{ paperId, title, pct, level: nscLevel(pct) }, ...prev]);
   }, []);
 
-  // overall average across all topics (recomputes whenever topics change)
+  const addActivity = useCallback((activity) => {
+    setRecentActivity((prev) => {
+      if (activity.uniqueKey && prev.some((item) => item.uniqueKey === activity.uniqueKey)) return prev;
+      return [activity, ...prev];
+    });
+  }, []);
+
+  const addDownload = useCallback((download) => {
+    setDownloads((prev) => {
+      if (prev.some((item) => item.id === download.id)) {
+        return prev.map((item) => (item.id === download.id ? { ...item, ...download } : item));
+      }
+      return [download, ...prev];
+    });
+  }, []);
+
+  const updateDownload = useCallback((id, patch) => {
+    setDownloads((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  }, []);
+
+  const removeDownload = useCallback((id) => {
+    setDownloads((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  const completeDownload = useCallback((id) => {
+    setDownloads((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, progress: 100, status: "complete" } : item
+      )
+    );
+  }, []);
+
+  const toggleStudyTask = useCallback((task) => {
+    setCompletedStudyTasks((prev) =>
+      prev.includes(task.id) ? prev.filter((id) => id !== task.id) : [...prev, task.id]
+    );
+  }, []);
+
+  const markNotificationRead = useCallback((notificationId) => {
+    setReadNotifications((prev) =>
+      prev.includes(notificationId) ? prev : [...prev, notificationId]
+    );
+  }, []);
+
+  const markAllNotificationsRead = useCallback(() => {
+    setReadNotifications(NOTIFICATIONS.map((notification) => notification.id));
+  }, []);
+
+  const isWalkthroughUnlocked = useCallback(
+    (paperId) => examResults.some((result) => result.paperId === paperId),
+    [examResults]
+  );
+
+  const unreadNotifications = useMemo(
+    () => NOTIFICATIONS.filter((notification) => !readNotifications.includes(notification.id)).length,
+    [readNotifications]
+  );
+
   const average = useMemo(
-    () => Math.round(topics.reduce((s, t) => s + t.score, 0) / topics.length),
+    () => Math.round(topics.reduce((s, t) => s + t.score, 0) / Math.max(1, topics.length)),
     [topics]
   );
 
   const value = {
-    progress: { points, completedLessons, topics, examResults, average },
+    progress: {
+      points,
+      completedLessons,
+      topics,
+      examResults,
+      recentActivity,
+      quizAttempts,
+      completedStudyTasks,
+      downloads,
+      readNotifications,
+      unreadNotifications,
+      average,
+      streak: LEARNER.streak,
+    },
     completeLesson,
     recordQuiz,
     recordMockExam,
+    addActivity,
+    addDownload,
+    updateDownload,
+    removeDownload,
+    completeDownload,
+    toggleStudyTask,
+    markNotificationRead,
+    markAllNotificationsRead,
+    isWalkthroughUnlocked,
+    resetProgress,
   };
   return <ProgressContext.Provider value={value}>{children}</ProgressContext.Provider>;
 }
