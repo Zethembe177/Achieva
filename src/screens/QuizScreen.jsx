@@ -2,68 +2,172 @@
 // Serves the Daily Challenge / a topic quiz.
 // REQ-QUIZ-2: on submission show the score immediately, then a review showing
 // the learner's answer, the correct answer, and an explanation.
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { COLORS } from "../theme/tokens";
 import { useNav } from "../navigation/NavContext";
 import { useProgress } from "../state/ProgressContext";
-import { DAILY_CHALLENGE } from "../data/mockData";
+import { QUIZZES } from "../data/mockData";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import ScreenHeader from "../components/ScreenHeader";
+import ProgressBar from "../components/ProgressBar";
 
 export default function QuizScreen() {
-  const { navigate } = useNav();
+  const { params, navigate } = useNav();
   const { recordQuiz } = useProgress();
-  const q = DAILY_CHALLENGE;
-  const [picked, setPicked] = useState(null);   // chosen option index
+  const quiz = QUIZZES.find((q) => q.id === params.quizId) || QUIZZES[0];
+  const [index, setIndex] = useState(0);
+  const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
-  const correctIndex = q.options.findIndex((o) => o.correct);
-  const isRight = picked === correctIndex;
 
-  // submit: lock the answer AND push the result to the shared store
-  // (100% if right, 0% if wrong — updates the topic average + points on the tracker)
-  function submit() {
+  const q = quiz.questions[index];
+  const score = useMemo(
+    () =>
+      quiz.questions.reduce(
+        (s, x, i) => s + (answers[i] === x.answer ? 1 : 0),
+        0
+      ),
+    [answers, quiz.questions]
+  );
+  const pct = Math.round((score / quiz.questions.length) * 100);
+
+  const submit = () => {
     setSubmitted(true);
-    recordQuiz(q.topic, isRight ? 100 : 0, isRight ? q.points : 0);
-  }
-
-  // colour each option once submitted: green = correct, red = wrong pick
-  function optStyle(i) {
-    let border = COLORS.line, bg = "transparent";
-    if (submitted) {
-      if (i === correctIndex) { border = COLORS.green; bg = "rgba(46,204,113,0.12)"; }
-      else if (i === picked) { border = COLORS.red; bg = "rgba(231,76,60,0.12)"; }
-    } else if (i === picked) { border = COLORS.gold; bg = "rgba(201,168,76,0.12)"; }
-    return { border: `1px solid ${border}`, background: bg };
-  }
+    recordQuiz(quiz.id, quiz.topic, pct, score * 2);
+  };
 
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "0 16px 16px" }}>
-      <ScreenHeader title="Daily Challenge" subtitle={`${q.topic} · ${q.points} pts`} />
-      <Card>
-        <div style={{ color: COLORS.white, fontSize: 17, fontWeight: 700 }}>{q.question}</div>
-      </Card>
-      {q.options.map((o, i) => (
-        <div key={o.label} onClick={() => !submitted && setPicked(i)}
-          style={{ ...optStyle(i), borderRadius: 12, padding: "12px 14px", marginBottom: 10,
-            cursor: submitted ? "default" : "pointer", display: "flex", gap: 10, alignItems: "center" }}>
-          <span style={{ color: COLORS.gold, fontWeight: 800 }}>{o.label}</span>
-          <span style={{ color: COLORS.soft, fontSize: 14 }}>{o.text}</span>
-        </div>
-      ))}
+      <ScreenHeader
+        title={quiz.title}
+        subtitle={`${quiz.topic} · ${quiz.questions.length} questions`}
+      />
+      <ProgressBar pct={((index + 1) / quiz.questions.length) * 100} />
 
       {!submitted ? (
-        <Button disabled={picked === null} onClick={submit}>Submit answer</Button>
+        <>
+          <Card>
+            <div
+              style={{
+                color: COLORS.gold,
+                fontSize: 11,
+                fontWeight: 800,
+              }}
+            >
+              QUESTION {index + 1} OF {quiz.questions.length}
+            </div>
+            <div
+              style={{
+                color: COLORS.white,
+                fontSize: 17,
+                fontWeight: 700,
+                marginTop: 8,
+              }}
+            >
+              {q.text}
+            </div>
+          </Card>
+
+          {q.options.map((o, i) => (
+            <button
+              key={o}
+              onClick={() => setAnswers({ ...answers, [index]: i })}
+              style={{
+                width: "100%",
+                textAlign: "left",
+                padding: 12,
+                marginBottom: 9,
+                borderRadius: 12,
+                border: `1px solid ${
+                  answers[index] === i ? COLORS.gold : COLORS.line
+                }`,
+                background:
+                  answers[index] === i
+                    ? "rgba(201,168,76,.12)"
+                    : "transparent",
+                color: COLORS.soft,
+              }}
+            >
+              {String.fromCodePoint(65 + i)}. {o}
+            </button>
+          ))}
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button
+              variant="outline"
+              disabled={index === 0}
+              onClick={() => setIndex(index - 1)}
+            >
+              Previous
+            </Button>
+            {index < quiz.questions.length - 1 ? (
+              <Button
+                disabled={answers[index] === undefined}
+                onClick={() => setIndex(index + 1)}
+              >
+                Next
+              </Button>
+            ) : (
+              <Button
+                disabled={
+                  Object.keys(answers).length !== quiz.questions.length
+                }
+                onClick={submit}
+              >
+                Submit quiz
+              </Button>
+            )}
+          </div>
+        </>
       ) : (
         <>
-          {/* immediate result */}
-          <Card style={{ marginTop: 4, borderColor: isRight ? COLORS.green : COLORS.red }}>
-            <div style={{ color: isRight ? COLORS.green : COLORS.red, fontWeight: 800, fontSize: 16 }}>
-              {isRight ? "Correct! +2 pts" : "Not quite"}
+          <Card gold style={{ textAlign: "center" }}>
+            <div
+              style={{
+                color: COLORS.gold,
+                fontSize: 36,
+                fontWeight: 900,
+              }}
+            >
+              {pct}%
             </div>
-            <div style={{ color: COLORS.soft, fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>{q.explanation}</div>
+            <div style={{ color: COLORS.soft }}>
+              {score} of {quiz.questions.length} correct
+            </div>
           </Card>
-          <Button onClick={() => navigate("home")}>Back to home</Button>
+
+          {quiz.questions.map((x, i) => (
+            <Card
+              key={x.id}
+              style={{
+                borderColor:
+                  answers[i] === x.answer ? COLORS.green : COLORS.red,
+              }}
+            >
+              <div style={{ color: COLORS.white, fontWeight: 700 }}>
+                {i + 1}. {x.text}
+              </div>
+              <div
+                style={{
+                  color: COLORS.midgrey,
+                  fontSize: 12,
+                  marginTop: 6,
+                }}
+              >
+                Your answer: {x.options[answers[i]]}
+              </div>
+              <div style={{ color: COLORS.green, fontSize: 12 }}>
+                Correct: {x.options[x.answer]}
+              </div>
+              <p style={{ color: COLORS.soft, fontSize: 12 }}>
+                {x.explanation}
+              </p>
+            </Card>
+          ))}
+
+          <Button onClick={() => navigate("practice")}>
+            Return to Practice
+          </Button>
         </>
       )}
     </div>

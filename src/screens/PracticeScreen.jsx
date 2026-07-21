@@ -58,6 +58,7 @@ export default function PracticeScreen() {
       {PAST_PAPERS.map((p) => {
         const result = progress.examResults.find((r) => r.paperId === p.id);
         const unlocked = isWalkthroughUnlocked(p.id);
+        const memoUnlocked = Boolean(result);
         const walk = WALKTHROUGHS.find((w) => w.paperId === p.id);
         const memoVisible = memoOpen === p.id;
         let badgeText;
@@ -76,7 +77,11 @@ export default function PracticeScreen() {
               <div>
                 <div style={{ color: COLORS.white, fontWeight: 700 }}>{p.title}</div>
                 <div style={{ color: COLORS.midgrey, fontSize: 11 }}>{p.marks} marks · {p.hours} hours</div>
-                {p.memo && <div style={{ color: COLORS.soft, fontSize: 11, marginTop: 4 }}>{p.memo}</div>}
+                {p.memo && (
+                  <div style={{ color: COLORS.soft, fontSize: 11, marginTop: 4 }}>
+                    {memoUnlocked ? p.memo : "Memo locked until you submit and mark this paper."}
+                  </div>
+                )}
               </div>
               <Badge color={result ? COLORS.green : COLORS.gold}>{badgeText}</Badge>
             </div>
@@ -91,12 +96,16 @@ export default function PracticeScreen() {
                 {unlocked ? "Watch walkthrough" : "Submit paper to unlock"}
               </Button>
               {p.memo && (
-                <Button variant="outline" onClick={() => setMemoOpen(memoVisible ? null : p.id)}>
-                  {memoVisible ? "Hide memo" : "View memo"}
+                <Button
+                  variant="outline"
+                  disabled={!memoUnlocked}
+                  onClick={() => memoUnlocked && setMemoOpen(memoVisible ? null : p.id)}
+                >
+                  {memoVisible ? "Hide memo" : memoUnlocked ? "View memo" : "Unlock memo after marking"}
                 </Button>
               )}
             </div>
-            {memoVisible && p.memoDetails && (
+            {memoVisible && memoUnlocked && p.memoDetails && (
               <div style={{ color: COLORS.soft, fontSize: 12, marginTop: 10, lineHeight: 1.5 }}>
                 {p.memoDetails}
               </div>

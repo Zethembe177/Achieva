@@ -4,7 +4,7 @@
 //   1. Wrap everything in <NavProvider> (our tiny router).
 //   2. Map screen names -> screen components (SCREENS registry).
 //   3. Render the current screen inside a phone frame.
-//   4. Show the bottom tab bar only on the five top-level tab screens.
+//   4. Show the bottom tab bar only on the six existing top-level tab screens.
 //
 // To add a screen: create it in src/screens, import it, add it to SCREENS.
 // Because each screen is its own file, teammates rarely touch this file at the
@@ -14,6 +14,7 @@
 import { COLORS, FONT, GRADIENTS } from "./theme/tokens";
 import { NavProvider, useNav } from "./navigation/NavContext";
 import { ProgressProvider } from "./state/ProgressContext";
+import { SubjectProvider } from "./state/SubjectContext";
 import StatusBar from "./components/StatusBar";
 import BottomNav from "./components/BottomNav";
 
@@ -34,6 +35,12 @@ import LeaderboardScreen from "./screens/LeaderboardScreen";
 import WellnessScreen from "./screens/WellnessScreen";
 import DownloadManagerScreen from "./screens/DownloadManagerScreen";
 import ProfileScreen from "./screens/ProfileScreen";
+import StudyPlannerScreen from "./screens/StudyPlannerScreen";
+import RecentActivityScreen from "./screens/RecentActivityScreen";
+import NotificationsScreen from "./screens/NotificationsScreen";
+import NotesScreen from "./screens/NotesScreen";
+import SubscriptionScreen from "./screens/SubscriptionScreen";
+import WalkthroughScreen from "./screens/WalkthroughScreen";
 
 // name -> component
 const SCREENS = {
@@ -53,23 +60,27 @@ const SCREENS = {
   wellness: WellnessScreen,
   downloads: DownloadManagerScreen,
   profile: ProfileScreen,
+  studyPlanner: StudyPlannerScreen,
+  recentActivity: RecentActivityScreen,
+  notifications: NotificationsScreen,
+  notes: NotesScreen,
+  subscription: SubscriptionScreen,
+  walkthrough: WalkthroughScreen,
 };
 
 // screens that show the bottom tab bar
-const TAB_SCREENS = ["home", "learn", "practice", "performance", "community", "profile"];
+const TAB_SCREENS = new Set(["home", "learn", "practice", "performance", "community", "profile"]);
 
 function Shell() {
   const { screen } = useNav();
   const Screen = SCREENS[screen] || WelcomeScreen;
-  const showTabs = TAB_SCREENS.includes(screen);
+  const showTabs = TAB_SCREENS.has(screen);
 
   return (
     // grey backdrop centres the phone; delete the frame to ship full-bleed on device
-    <div style={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center",
-      background: "#f0f2f5", fontFamily: FONT, padding: "24px 12px" }}>
-      <div style={{ width: 375, height: 780, background: GRADIENTS.screen, borderRadius: 44, overflow: "hidden",
-        position: "relative", border: "6px solid #243651", boxShadow: "0 24px 70px rgba(0,0,0,0.5)",
-        display: "flex", flexDirection: "column" }}>
+    <div className="app-backdrop" style={{ fontFamily: FONT }}>
+      <div className="phone-frame" style={{ background: GRADIENTS.screen,
+        position: "relative", display: "flex", flexDirection: "column" }}>
         {/* soft gold glow behind the top of the screen (founder's radial accent) */}
         <div style={{ position: "absolute", top: -60, right: -40, width: 220, height: 220,
           background: GRADIENTS.goldGlow, pointerEvents: "none", zIndex: 0 }} />
@@ -92,9 +103,11 @@ function Shell() {
 export default function App() {
   return (
     <NavProvider initial="welcome">
-      <ProgressProvider>
-        <Shell />
-      </ProgressProvider>
+      <SubjectProvider>
+        <ProgressProvider>
+          <Shell />
+        </ProgressProvider>
+      </SubjectProvider>
     </NavProvider>
   );
 }

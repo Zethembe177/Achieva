@@ -6,19 +6,23 @@
 import { COLORS, bandColor } from "../theme/tokens";
 import { LEARNER, STUDY_PLAN } from "../data/mockData";
 import { useProgress } from "../state/ProgressContext";
+import { useNav } from "../navigation/NavContext";
+import { useSubject } from "../state/SubjectContext";
 import Card from "../components/Card";
 import ProgressBar from "../components/ProgressBar";
 import Badge from "../components/Badge";
 export default function PerformanceScreen() {
   // read LIVE values from the shared store (updated by lessons/quizzes/exams)
   const { progress } = useProgress();
+  const { navigate } = useNav();
+  const { selectedSubject } = useSubject();
   const average = progress.average;
   const TOPIC_SCORES = progress.topics;
   const gap = LEARNER.target - average; // negative means above target
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "0 16px 16px" }}>
       <div style={{ color: COLORS.white, fontSize: 22, fontWeight: 800, margin: "10px 0 4px" }}>My Progress</div>
-      <div style={{ color: COLORS.midgrey, fontSize: 13, marginBottom: 12 }}>Grade 12 · 2026</div>
+      <div style={{ color: COLORS.midgrey, fontSize: 13, marginBottom: 12 }}>Grade 12 · 2026 · {selectedSubject.name}</div>
       {/* headline vs benchmark */}
       <Card gold>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -53,6 +57,11 @@ export default function PerformanceScreen() {
           ))}
         </>
       )}
+
+      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+        <button onClick={() => navigate("studyPlanner")} style={{ flex: 1, padding: 11, borderRadius: 12, border: `1px solid ${COLORS.gold}`, background: "transparent", color: COLORS.gold, fontWeight: 800, cursor: "pointer" }}>Study Planner</button>
+        <button onClick={() => navigate("recentActivity")} style={{ flex: 1, padding: 11, borderRadius: 12, border: `1px solid ${COLORS.line}`, background: COLORS.navy2, color: COLORS.soft, fontWeight: 800, cursor: "pointer" }}>Recent Activity</button>
+      </div>
 
       {/* rule-based study plan */}
       <div style={{ color: COLORS.soft, fontSize: 13, fontWeight: 700, margin: "10px 4px 8px" }}>AI Study Plan · this week</div>
